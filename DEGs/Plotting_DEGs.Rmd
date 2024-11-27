@@ -1,0 +1,159 @@
+---
+title: "DEG-Volcano Plot"
+---
+
+```{r}
+library(ggplot2)
+library(magrittr)
+library(ggpubr)
+library(plotly)
+library(tidyr)
+library(grid)
+library(gridExtra)
+library(ggsignif)
+library(reshape2)
+library(ggrepel)
+library(datawizard)
+library(dplyr)
+library(htmltools)
+library(DESeq2)
+library(tidyverse)
+library(ggbreak) 
+library(patchwork)
+library(ggforce)
+library(ggVennDiagram)
+library(ggvenn)
+library(VennDiagram)
+```
+
+
+#set up/import
+```{r}
+#Path to folder contains DEGs
+setwd(".../DEGs/")
+
+deg_df <- read.csv('.../GC_PB_DEGs.csv')  #multiome
+#deg_df <- read.csv('.../scRNAseq_GC_PB_DEGs.csv') #scRNA
+# Filtering
+deg_df <- deg_df[!grepl("^MT-", deg_df$genes), ]
+deg_df <- deg_df[!grepl("^RP[LS]", deg_df$genes), ]
+
+```
+
+#GC-PB volcano plot-Multiome data
+```{r}
+FC_threshold <- 2
+padj_threshold <- 0.05
+score_threshold <- 30
+
+
+#get indices for labels of interest (genes with padj < 0.05 and FC > 2)
+ix_label_index <- c(which(abs(deg_df$scores) >= score_theshold & abs(deg_df$logfoldchanges) >= log2(FC_threshold)))
+
+#Let's just label these genes of interest
+ix_label <- c(ix_label_index)
+
+
+deg_df$gene_name[ix_label] <- deg_df$genes[ix_label]
+
+
+ggplot(deg_df,aes(x = logfoldchanges, y = abs(scores), label = gene_name))+
+  geom_point()+
+  geom_point(data = deg_df[abs(deg_df$scores) >= score_theshold & deg_df$logfoldchanges  <= -log2(FC_threshold),], color = "#7BDE7B")+
+  geom_point(data = deg_df[abs(deg_df$scores ) >= score_theshold & deg_df$logfoldchanges  >= log2(FC_threshold),], color = "#B83636")+
+  geom_label_repel(data = deg_df[deg_df$gene_name != "",], size =5, box.padding   = 0.35, 
+                  point.padding = 0.5, min.segment.length = 0.1, max.overlaps = 20, force_pull =5)+
+  xlab("log2 FC (PB vs GC)")+
+  ylab("differential expression score (abolute value)")+
+  theme_classic()+
+  xlim(-10,10)+
+  scale_y_continuous(expand = c(0, 0), limits=c(0,80), breaks = c(25, 50, 75))+
+  theme(axis.text = element_text(size = 30), axis.title = element_text(size = 20), plot.title = element_text(size=15),
+        panel.grid = element_blank())+
+  geom_vline(xintercept = c(log2(FC_threshold), -log2(FC_threshold)), linetype = "dashed")+
+  geom_hline(yintercept = c(score_theshold), linetype = "dashed")
+
+
+ggsave("PB_GC_DEG.pdf", height = 10, width = 10)
+dev.off()
+```
+
+#Getting top DEGs of GC-PB MULTIOME
+```{r}
+
+FC_threshold <- 2
+padj_threshold <- 0.05
+score_threshold <- 30
+
+# Filter the deg_df based on the thresholds
+filtered_deg_df <- deg_df[abs(deg_df$logfoldchanges) >= FC_threshold & 
+                           deg_df$pvals_adj <= padj_threshold & 
+                           abs(deg_df$scores) >= score_threshold, ]
+
+write.csv(filtered_deg_df, ".../Top_Degs_GC_PB_multiome.csv", row.names = FALSE)
+```
+
+#GC-PB volcano plot-scRNA data
+```{r}
+FC_threshold <- 2
+padj_threshold <- 0.05
+score_threshold <- 30
+
+
+#get indices for labels of interest (genes with padj < 0.05 and FC > 2)
+ix_label_index <- c(which(abs(deg_df$scores) >= score_theshold & abs(deg_df$logfoldchanges) >= log2(FC_threshold)))
+
+#Let's just label these genes of interest
+ix_label <- c(ix_label_index)
+
+
+deg_df$gene_name[ix_label] <- deg_df$genes[ix_label]
+
+ggplot(deg_df, aes(x = logfoldchanges, y = abs(scores), label = gene_name)) +
+  geom_point() +
+  geom_point(data = deg_df[abs(deg_df$scores) >= score_theshold & deg_df$logfoldchanges  <= -log2(FC_threshold),], color = "#7BDE7B")+
+  geom_point(data = deg_df[abs(deg_df$scores ) >= score_theshold & deg_df$logfoldchanges  >= log2(FC_threshold),], color = "#B83636")+
+  
+  # Label for top blue genes
+  geom_label_repel(data = deg_df[abs(deg_df$scores) >= score_theshold & deg_df$logfoldchanges <= -log2(FC_threshold) & deg_df$gene_name != "",],
+                   aes(label = gene_name), size = 5, box.padding = 0.35, 
+                   point.padding = 0.5, min.segment.length = 0.1, max.overlaps = 50, force_pull = 5) +
+  
+  # Label for top red genes
+  geom_label_repel(data = deg_df[abs(deg_df$scores) >= score_theshold & deg_df$logfoldchanges >= log2(FC_threshold) & deg_df$gene_name != "",],
+                   aes(label = gene_name),  size = 5, box.padding = 0.35, 
+                   point.padding = 0.5, min.segment.length = 0.1, max.overlaps = 20, force_pull = 5) +
+  
+  xlab("log2 FC (PB vs GC)") +
+  ylab("differential expression score (absolute value)") +
+  theme_classic() +
+  xlim(-10, 10) +
+  scale_y_continuous(expand = c(0, 0), limits = c(0, 80), breaks = c(25, 50, 75)) +
+  theme(axis.text = element_text(size = 30), axis.title = element_text(size = 20), plot.title = element_text(size = 15),
+        panel.grid = element_blank()) +
+  geom_vline(xintercept = c(log2(FC_threshold), -log2(FC_threshold)), linetype = "dashed") +
+  geom_hline(yintercept = c(score_theshold), linetype = "dashed")
+
+ggsave("scRNA_PB_GC_DEG.pdf", height = 10, width = 10)
+
+dev.off()
+
+```
+
+
+
+#Getting top DEGs of GC-PB scRNA
+```{r}
+FC_threshold <- 2
+padj_threshold <- 0.05
+score_threshold <- 30
+
+# Filter the deg_df based on the thresholds
+filtered_deg_df <- deg_df[abs(deg_df$logfoldchanges) >= FC_threshold & 
+                           deg_df$pvals_adj <= padj_threshold & 
+                           abs(deg_df$scores) >= score_threshold, ]
+
+write.csv(filtered_deg_df, ".../Top_Degs_GC_PB_scRNA.csv", row.names = FALSE)
+
+```
+

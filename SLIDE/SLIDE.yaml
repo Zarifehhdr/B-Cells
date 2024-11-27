@@ -1,0 +1,21 @@
+---
+x_path: .../Data/Concat/Male_Donor/X_GC_PB.csv
+y_path: .../Data/Concat/Male_Donor/Y_GC_PB.csv
+out_path: .../SLIDE/out
+delta:
+  - 0.1
+  - 0.2
+  - 0.26
+lambda:
+  - 1
+spec: 0.44
+y_factor: TRUE
+y_levels:
+  - 0
+  - 1
+eval_type: auc
+SLIDE_iter: 2000
+SLIDE_top_feats: 20
+sampleCV_iter: 50
+sampleCV_K: 20
+do_interacts: TRUE
